@@ -1,0 +1,44 @@
+body {
+  background-color: #e3f2fd; /* Light blue background */
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  padding: 20px;
+}
+
+.card {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background-color: #ffffff; /* White card background */
+  border: 1px solid #90caf9; /* Blue border for card */
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #0d47a1; /* Dark blue color for heading */
+}
+
+label {
+  color: #1565c0; /* Medium blue color for labels */
+}
+
+.form-control {
+  border: 1px solid #42a5f5; /* Light blue border for input */
+}
+
+.btn {
+  background-color: #0d47a1; /* Dark blue for buttons */
+  color: white;
+  border: none;
+}
+
+.btn:hover {
+  background-color: #1565c0; /* Slightly lighter blue on hover */
+}
+
+p {
+  color: #0d47a1; /* Dark blue for text */
+}
+ 
