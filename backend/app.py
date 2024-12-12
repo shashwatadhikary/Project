@@ -4,6 +4,7 @@ from pymongo import MongoClient
 import bcrypt
 import os
 from dotenv import load_dotenv
+import certifi
 
 # Load environment variables
 load_dotenv()
@@ -11,9 +12,10 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# MongoDB connection
+# MongoDB connection with certifi for SSL certificate handling
 MONGODB_URI = os.getenv('MONGODB_URI')
-client = MongoClient(MONGODB_URI)
+ca = certifi.where()
+client = MongoClient(MONGODB_URI, tlsCAFile=ca)
 db = client['StudyGroupMatcher']
 users_collection = db['users']
 meetings_collection = db['meetings']  # Added collection for meetings
