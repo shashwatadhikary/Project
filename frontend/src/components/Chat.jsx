@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const socketUrl = "ws://your-backend-url"; // Replace with your backend WebSocket URL
-const chatHistoryUrl = "http://your-backend-url/api/chats"; // Replace with your backend REST API URL for fetching chat history
+const socketUrl = "wss://project-1-m2bn.onrender.com"; // WebSocket URL
+const chatHistoryUrl = "https://project-1-m2bn.onrender.com/api/chats"; // REST API for fetching chat history
 
 function Chat() {
   const [username, setUsername] = useState('');
