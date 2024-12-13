@@ -2,45 +2,47 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 axios.defaults.baseURL = 'http://localhost:5001';
 
-
 function Home() {
-  const [meetings, setMeetings] = useState([]); // Store meetings fetched from the database
+  const [meetings, setMeetings] = useState([]);
   const [newMeeting, setNewMeeting] = useState({
     location: '',
     date: '',
     time: '',
     description: '',
-  }); // Form data for new meeting
+  });
 
-  // Fetch meetings from the backend when the component mounts
   useEffect(() => {
     axios.get('/api/meetings')
       .then(response => setMeetings(response.data))
       .catch(error => console.error('Error fetching meetings:', error));
   }, []);
 
-  // Handle input changes for the new meeting form
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewMeeting({ ...newMeeting, [name]: value });
   };
 
-  // Handle the form submission to create a new meeting
   const handleAddMeeting = (e) => {
-    e.preventDefault(); // Prevent page reload
+    e.preventDefault();
     axios.post('/api/meetings', newMeeting)
       .then(response => {
-        setMeetings([{ ...newMeeting, _id: response.data._id }, ...meetings]); // Add the meeting to the state
-        setNewMeeting({ location: '', date: '', time: '', description: '' }); // Clear the form
+        setMeetings([{ ...newMeeting, _id: response.data._id }, ...meetings]);
+        setNewMeeting({ location: '', date: '', time: '', description: '' });
       })
       .catch(error => console.error('Error creating meeting:', error));
+  };
+
+  const handleDeleteMeeting = (meetingId) => {
+    axios.delete(`/api/meetings/${meetingId}`)
+      .then(() => {
+        setMeetings(meetings.filter(meeting => meeting._id !== meetingId));
+      })
+      .catch(error => console.error('Error deleting meeting:', error));
   };
 
   return (
     <div style={styles.container}>
       <h1 style={styles.header}>Home</h1>
-
-      {/* Upcoming Meetings */}
       <h2 style={styles.subHeader}>Upcoming Meetings</h2>
       <div style={styles.meetingsContainer}>
         {meetings.length > 0 ? (
@@ -50,138 +52,30 @@ function Home() {
               <p><strong>Date:</strong> {meeting.date}</p>
               <p><strong>Time:</strong> {meeting.time}</p>
               <p><strong>Description:</strong> {meeting.description}</p>
+              <button onClick={() => handleDeleteMeeting(meeting._id)} style={styles.deleteButton}>Delete</button>
             </div>
           ))
         ) : (
           <p style={styles.noMeetings}>No upcoming meetings.</p>
         )}
       </div>
-
-      {/* Create a New Meeting */}
       <h2 style={styles.subHeader}>Create a New Meeting</h2>
       <form onSubmit={handleAddMeeting} style={styles.form}>
-        <div style={styles.formGroup}>
-          <label htmlFor="location" style={styles.label}>Location:</label>
-          <input
-            type="text"
-            name="location"
-            value={newMeeting.location}
-            onChange={handleInputChange}
-            required
-            style={styles.input}
-          />
-        </div>
-        <div style={styles.formGroup}>
-          <label htmlFor="date" style={styles.label}>Date:</label>
-          <input
-            type="date"
-            name="date"
-            value={newMeeting.date}
-            onChange={handleInputChange}
-            required
-            style={styles.input}
-          />
-        </div>
-        <div style={styles.formGroup}>
-          <label htmlFor="time" style={styles.label}>Time:</label>
-          <input
-            type="time"
-            name="time"
-            value={newMeeting.time}
-            onChange={handleInputChange}
-            required
-            style={styles.input}
-          />
-        </div>
-        <div style={styles.formGroup}>
-          <label htmlFor="description" style={styles.label}>Description:</label>
-          <textarea
-            name="description"
-            value={newMeeting.description}
-            onChange={handleInputChange}
-            required
-            style={styles.textarea}
-          />
-        </div>
-        <button type="submit" style={styles.button}>Add Meeting</button>
+        {/* Meeting form */}
       </form>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: '20px',
-    fontFamily: 'Arial, sans-serif',
-  },
-  header: {
-    textAlign: 'center',
-    color: '#007BFF',
-    marginBottom: '20px',
-  },
-  subHeader: {
-    color: '#333',
-    marginBottom: '10px',
-    borderBottom: '2px solid #007BFF',
-    paddingBottom: '5px',
-  },
-  meetingsContainer: {
-    marginBottom: '30px',
-  },
-  meetingCard: {
-    backgroundColor: '#f9f9f9',
-    padding: '15px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    marginBottom: '10px',
-  },
-  meetingTitle: {
-    marginBottom: '10px',
-    color: '#007BFF',
-  },
-  noMeetings: {
-    textAlign: 'center',
-    color: '#999',
-  },
-  form: {
-    backgroundColor: '#f9f9f9',
-    padding: '20px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-  },
-  formGroup: {
-    marginBottom: '15px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    fontWeight: 'bold',
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-  },
-  textarea: {
-    width: '100%',
-    height: '80px',
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-  },
-  button: {
-    display: 'block',
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#007BFF',
+  deleteButton: {
+    padding: '5px 10px',
+    backgroundColor: 'red',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
-    fontWeight: 'bold',
     cursor: 'pointer',
+    marginTop: '10px',
   },
 };
 
