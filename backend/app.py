@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
-from flask_socketio import SocketIO, send
+from flask_socketio import SocketIO, send, emit
 import bcrypt
 import os
 from dotenv import load_dotenv
@@ -21,8 +21,9 @@ ca = certifi.where()
 client = MongoClient(MONGODB_URI, tlsCAFile=ca)
 db = client['StudyGroupMatcher']
 users_collection = db['users']
-meetings_collection = db['meetings']  # Added collection for meetings
-groups_collection = db['groups']  # Added collection for groups
+meetings_collection = db['meetings']
+groups_collection = db['groups']
+chats_collection = db['chats']  # Added collection for chats
 
 @app.route("/")
 def hello_world():
@@ -105,10 +106,74 @@ def delete_meeting(meeting_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# WebSocket chat
+
+# Create a new study group
+@app.route('/api/groups', methods=['POST'])
+def create_group():
+    try:
+        data = request.json
+        required_fields = ['name', 'department', 'course_number', 'description']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+
+        # Create the group document
+        group = {
+            "name": data['name'],
+            "department": data['department'],
+            "course_number": data['course_number'],
+            "description": data['description']
+        }
+        result = groups_collection.insert_one(group)  # Save group to MongoDB
+        return jsonify({"_id": str(result.inserted_id), "message": "Group created successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Fetch all study groups
+@app.route('/api/groups', methods=['GET'])
+def get_groups():
+    try:
+        groups = list(groups_collection.find())  # Retrieve all documents from the collection
+        for group in groups:
+            group['_id'] = str(group['_id'])  # Convert ObjectId to string for JSON compatibility
+        return jsonify(groups), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# Fetch all chat messages
+@app.route('/api/chats', methods=['GET'])
+def get_chats():
+    try:
+        chats = list(chats_collection.find())
+        for chat in chats:
+            chat['_id'] = str(chat['_id'])
+        return jsonify(chats), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# WebSocket chat and signaling for video calls
 @socketio.on('message')
 def handle_message(data):
-    send(data, broadcast=True)  # Broadcast the message to all connected clients
+    # Save the chat message to the database
+    chat_message = {
+        "username": data["username"],
+        "text": data["text"]
+    }
+    chats_collection.insert_one(chat_message)
+
+    # Broadcast the message to all connected clients
+    send(data, broadcast=True)
+
+@socketio.on('offer')
+def handle_offer(data):
+    emit('offer', data, broadcast=True, include_self=False)
+
+@socketio.on('answer')
+def handle_answer(data):
+    emit('answer', data, broadcast=True, include_self=False)
+
+@socketio.on('ice-candidate')
+def handle_ice_candidate(data):
+    emit('ice-candidate', data, broadcast=True, include_self=False)
 
 if __name__ == "__main__":
     socketio.run(app, port=5001)
