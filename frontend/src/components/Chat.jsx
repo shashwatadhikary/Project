@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 const socketUrl = "wss://project-1-m2bn.onrender.com"; // WebSocket URL
@@ -14,26 +14,24 @@ function Chat() {
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
 
-  // WebRTC configuration
-  const configuration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' } // Google's public STUN server
-    ],
-  };
+  const chatBoxRef = useRef(null);
 
-  // WebRTC: Handle incoming offer
+  const configuration = useMemo(() => ({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+    ],
+  }), []);
+
   const handleOffer = useCallback(async (offer) => {
     if (!peerConnection.current) {
       peerConnection.current = new RTCPeerConnection(configuration);
 
-      // Handle ICE candidates
       peerConnection.current.onicecandidate = ({ candidate }) => {
         if (candidate) {
           socket.send(JSON.stringify({ type: 'ice-candidate', candidate }));
         }
       };
 
-      // Set up remote video
       peerConnection.current.ontrack = (event) => {
         remoteVideoRef.current.srcObject = event.streams[0];
       };
@@ -45,18 +43,15 @@ function Chat() {
     const answer = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answer);
 
-    // Send the answer back to the caller
     socket.send(JSON.stringify({ type: 'answer', answer }));
   }, [socket, configuration]);
 
-  // WebRTC: Handle ICE candidates
   const handleIceCandidate = useCallback((candidate) => {
     if (peerConnection.current) {
       peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
     }
   }, []);
 
-  // WebRTC: Handle incoming answer
   const handleAnswer = useCallback(async (answer) => {
     if (peerConnection.current) {
       await peerConnection.current.setRemoteDescription(
@@ -65,59 +60,49 @@ function Chat() {
     }
   }, []);
 
-  // Fetch existing chats and establish WebSocket connection
   useEffect(() => {
-    // Fetch existing chat messages from the backend
     axios.get(chatHistoryUrl)
       .then((response) => {
-        setMessages(response.data.reverse()); // Show the latest messages at the top
+        setMessages(response.data.reverse());
       })
       .catch((error) => console.error('Error fetching chat history:', error));
 
-    // Establish WebSocket connection
     const newSocket = new WebSocket(socketUrl);
     setSocket(newSocket);
 
-    // Listen for incoming WebSocket messages
     newSocket.onmessage = (event) => {
       const incomingMessage = JSON.parse(event.data);
 
-      // Handle signaling messages for WebRTC
       if (incomingMessage.type === 'offer') {
         handleOffer(incomingMessage.offer);
       } else if (incomingMessage.type === 'answer') {
         handleAnswer(incomingMessage.answer);
       } else if (incomingMessage.type === 'ice-candidate') {
         handleIceCandidate(incomingMessage.candidate);
-      } else {
-        // Add chat messages to the top
-        setMessages((prevMessages) => [incomingMessage, ...prevMessages]);
+      } else if (incomingMessage.type === 'chat') {
+        setMessages((prevMessages) => [...prevMessages, incomingMessage]);
+        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
       }
     };
 
-    // Clean up the WebSocket connection when the component unmounts
     return () => {
       newSocket.close();
     };
   }, [handleOffer, handleAnswer, handleIceCandidate]);
 
-  // Start a video call
   const startCall = async () => {
     peerConnection.current = new RTCPeerConnection(configuration);
 
-    // Handle ICE candidates
     peerConnection.current.onicecandidate = ({ candidate }) => {
       if (candidate) {
         socket.send(JSON.stringify({ type: 'ice-candidate', candidate }));
       }
     };
 
-    // Set up remote video
     peerConnection.current.ontrack = (event) => {
       remoteVideoRef.current.srcObject = event.streams[0];
     };
 
-    // Get user media (video + audio)
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
@@ -127,32 +112,35 @@ function Chat() {
     });
     localVideoRef.current.srcObject = stream;
 
-    // Create and send offer
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
     socket.send(JSON.stringify({ type: 'offer', offer }));
   };
 
-  // Send chat messages
   const handleSendMessage = () => {
     if (!username || !message) {
       alert('Please enter a username and a message.');
       return;
     }
 
-    const newMessage = { username, text: message };
+    const newMessage = { type: 'chat', username, text: message };
 
-    // Send the message to the WebSocket server
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(newMessage));
     }
-    setMessage(''); // Clear the input field
+
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setMessage('');
+
+    setTimeout(() => {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }, 100);
   };
 
   return (
-    <div>
-      <h4>Group Chat with Video Call</h4>
+    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
+      <h4 style={{ textAlign: 'center' }}>Group Chat with Video Call</h4>
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <video
           ref={localVideoRef}
@@ -167,7 +155,7 @@ function Chat() {
           style={{ width: '300px', border: '1px solid black' }}
         ></video>
       </div>
-      <button onClick={startCall} style={{ marginBottom: '20px' }}>
+      <button onClick={startCall} style={{ width: '100%', padding: '10px', marginBottom: '20px' }}>
         Start Video Call
       </button>
       <input
@@ -175,24 +163,52 @@ function Chat() {
         placeholder="Your Name"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        style={{ marginBottom: '10px', width: '100%' }}
+        style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
       />
+      <div
+        ref={chatBoxRef}
+        style={{
+          border: '1px solid #ccc',
+          borderRadius: '5px',
+          height: '300px',
+          overflowY: 'scroll',
+          padding: '10px',
+          marginBottom: '10px',
+        }}
+      >
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            style={{
+              display: 'flex',
+              justifyContent: msg.username === username ? 'flex-end' : 'flex-start',
+              margin: '5px 0',
+            }}
+          >
+            <div
+              style={{
+                maxWidth: '70%',
+                backgroundColor: msg.username === username ? '#DCF8C6' : '#FFF',
+                padding: '10px',
+                borderRadius: '10px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 'bold' }}>{msg.username}</p>
+              <p style={{ margin: 0 }}>{msg.text}</p>
+            </div>
+          </div>
+        ))}
+      </div>
       <textarea
         placeholder="Type a message..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        style={{ width: '100%', marginBottom: '10px' }}
+        style={{ width: '100%', padding: '10px', marginBottom: '10px', height: '50px' }}
       ></textarea>
-      <button onClick={handleSendMessage} style={{ marginBottom: '10px' }}>
+      <button onClick={handleSendMessage} style={{ width: '100%', padding: '10px' }}>
         Send
       </button>
-      <div>
-        {messages.map((msg, index) => (
-          <p key={index}>
-            <strong>{msg.username}: </strong>{msg.text}
-          </p>
-        ))}
-      </div>
     </div>
   );
 }
