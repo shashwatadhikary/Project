@@ -26,7 +26,7 @@ function Signup() {
       });
 
       if (response.ok) {
-        navigate('/');
+        navigate('/'); // Navigate to the home page after successful signup
       } else {
         const data = await response.json();
         setError(data.error || 'Failed to sign up');
