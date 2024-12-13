@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
 const socketUrl = "wss://project-1-m2bn.onrender.com"; // WebSocket URL
@@ -20,6 +20,50 @@ function Chat() {
       { urls: 'stun:stun.l.google.com:19302' } // Google's public STUN server
     ],
   };
+
+  // WebRTC: Handle incoming offer
+  const handleOffer = useCallback(async (offer) => {
+    if (!peerConnection.current) {
+      peerConnection.current = new RTCPeerConnection(configuration);
+
+      // Handle ICE candidates
+      peerConnection.current.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+          socket.send(JSON.stringify({ type: 'ice-candidate', candidate }));
+        }
+      };
+
+      // Set up remote video
+      peerConnection.current.ontrack = (event) => {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      };
+    }
+
+    await peerConnection.current.setRemoteDescription(
+      new RTCSessionDescription(offer)
+    );
+    const answer = await peerConnection.current.createAnswer();
+    await peerConnection.current.setLocalDescription(answer);
+
+    // Send the answer back to the caller
+    socket.send(JSON.stringify({ type: 'answer', answer }));
+  }, [socket]);
+
+  // WebRTC: Handle ICE candidates
+  const handleIceCandidate = useCallback((candidate) => {
+    if (peerConnection.current) {
+      peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }, []);
+
+  // WebRTC: Handle incoming answer
+  const handleAnswer = useCallback(async (answer) => {
+    if (peerConnection.current) {
+      await peerConnection.current.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
+    }
+  }, []);
 
   // Fetch existing chats and establish WebSocket connection
   useEffect(() => {
@@ -55,51 +99,7 @@ function Chat() {
     return () => {
       newSocket.close();
     };
-  }, []);
-
-  // WebRTC: Handle ICE candidates
-  const handleIceCandidate = (candidate) => {
-    if (peerConnection.current) {
-      peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-  };
-
-  // WebRTC: Handle incoming offer
-  const handleOffer = async (offer) => {
-    if (!peerConnection.current) {
-      peerConnection.current = new RTCPeerConnection(configuration);
-
-      // Handle ICE candidates
-      peerConnection.current.onicecandidate = ({ candidate }) => {
-        if (candidate) {
-          socket.send(JSON.stringify({ type: 'ice-candidate', candidate }));
-        }
-      };
-
-      // Set up remote video
-      peerConnection.current.ontrack = (event) => {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      };
-    }
-
-    await peerConnection.current.setRemoteDescription(
-      new RTCSessionDescription(offer)
-    );
-    const answer = await peerConnection.current.createAnswer();
-    await peerConnection.current.setLocalDescription(answer);
-
-    // Send the answer back to the caller
-    socket.send(JSON.stringify({ type: 'answer', answer }));
-  };
-
-  // WebRTC: Handle incoming answer
-  const handleAnswer = async (answer) => {
-    if (peerConnection.current) {
-      await peerConnection.current.setRemoteDescription(
-        new RTCSessionDescription(answer)
-      );
-    }
-  };
+  }, [handleOffer, handleAnswer, handleIceCandidate]);
 
   // Start a video call
   const startCall = async () => {
