@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-axios.defaults.baseURL = 'http://localhost:5001';
+axios.defaults.baseURL = 'https://project-1-m2bn.onrender.com';
 
 function Home() {
   const [meetings, setMeetings] = useState([]); // List of meetings
