@@ -47,7 +47,7 @@ function Chat() {
 
     // Send the answer back to the caller
     socket.send(JSON.stringify({ type: 'answer', answer }));
-  }, [socket]);
+  }, [socket, configuration]);
 
   // WebRTC: Handle ICE candidates
   const handleIceCandidate = useCallback((candidate) => {
