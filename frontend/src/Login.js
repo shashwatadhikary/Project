@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import './login.css';
 
 function Login() {
@@ -25,10 +25,7 @@ function Login() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // Optionally store the token or user info if provided by the backend
-        localStorage.setItem('authToken', data.token || ''); // Adjust based on backend response
-        navigate('/app'); // Redirect to /app or desired route
+        navigate('/app');
       } else {
         const data = await response.json();
         setError(data.error || 'Failed to log in');
@@ -63,8 +60,7 @@ function Login() {
         <button type="submit" className="login-button">Login</button>
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </form>
-      <p>
-        Don't have an account? <Link to="/signup">Sign up</Link>
+      <p>        Don't have an account? <Link to="/signup">Sign up</Link>
       </p>
     </div>
   );
