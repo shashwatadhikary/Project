@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-axios.defaults.baseURL = 'http://localhost:5001';
+axios.defaults.baseURL = 'https://project-1-m2bn.onrender.com';
 
 
 function CreateGroup() {
