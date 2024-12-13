@@ -176,4 +176,5 @@ def handle_ice_candidate(data):
     emit('ice-candidate', data, broadcast=True, include_self=False)
 
 if __name__ == "__main__":
-    socketio.run(app, port=5001)
+    port = int(os.environ.get("PORT", 5001))
+    socketio.run(app, host="0.0.0.0", port=port)
